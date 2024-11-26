@@ -1,0 +1,453 @@
+#include<iostream>
+#include<iomanip>
+#include<fstream>
+#include<string>
+using namespace std;
+const int MAX_MEMORIA = 10;
+typedef int tMemoria[MAX_MEMORIA];
+const int MAX_PILA = 10;
+typedef int tPila[MAX_PILA];
+typedef enum { CONST, LOAD, STORE, ADD, MULT, IFEQ, IFGREAT, GOTO, READ, WRITE, ERROR } tCODIGO_INSTR;
+typedef enum { ERR_STACK, ERR_MEMORY, INVALID_ADDRESS } tError;
+const int MAX_INSTR = 20;
+typedef tCODIGO_INSTR tCodigos[MAX_INSTR];
+typedef int tArgumentos[MAX_INSTR];
+int carga_programa(tCodigos codigos, tArgumentos args, ifstream& archivo);
+void muestra_memoria(const tMemoria memoria, ofstream& archivo);
+void muestra_pila(const tPila pila, int tam_pila, ofstream& archivo);
+int ejecuta_const(int valor, tPila pila, int tam_pila);
+int ejecuta_load(int posM, const tMemoria memoria, tPila pila,int tam_pila, tError& error);
+int ejecuta_store(int posM, tMemoria memoria, tPila pila,int tam_pila, tError& error);
+int ejecuta_add(tPila pila, int tam_pila);
+int ejecuta_mult(tPila pila, int tam_pila);
+int ejecuta_programa(tMemoria memoria, tPila pila,tCodigos codigos, tArgumentos args,int num_instr, int& pc, tError& error);
+int ejecuta_ifeq(tPila pila, int tam_pila);
+int ejecuta_ifgreat(tPila pila, int tam_pila);
+int ejecuta_read(tMemoria memoria, int pos, int tam_pila);
+int ejecuta_write(const tMemoria memoria, int pos, int tam_pila);
+int main()
+{
+	tMemoria memoria;
+	tPila pila;
+	tCodigos codigos;
+	tArgumentos args;
+	ifstream entrada;
+	ofstream salida;
+	int num_instr;
+	cout << "dame el nombre de archivo de entrada: ";
+	string q;
+	getline(cin, q);
+	if (q != "\n") entrada.open(q);
+	num_instr = carga_programa(codigos, args, entrada);
+
+	if (num_instr > -1)
+	{
+		int tam_pila = ejecuta_programa(memoria, pila, codigos, args, num_instr);
+		if (tam_pila != -1)
+		{
+			cout << "dame el nombre de archivo de salida: ";
+			string d;
+			getline(cin, d);
+			if (d != "\n")
+				salida.open(d);
+			if (d != "\n")
+				salida.close();
+		}
+		if (tam_pila != -1)
+		{
+
+			muestra_memoria(memoria, salida);
+			muestra_pila(pila, tam_pila, salida);
+
+		}
+		else
+		{
+			cout << "ERROR DE EJECUCION";
+		}
+	}
+	else
+	{
+		cout << "ERROR DE SINTAXIS";
+	}
+	entrada.close();
+	return 0;
+}
+int carga_programa(tCodigos codigos, tArgumentos args, ifstream& archivo)
+{
+	//cout << "INTRODUCE UN PROGRAMA. CADA INSTREUCCION EN UNA LINEA\n";
+	int dim = 0;
+	int x, y = -1;
+	string b;
+	if (archivo.is_open())
+	{
+		archivo >> x;
+		if (x != y + 1)
+			dim = MAX_INSTR + 2;
+		while (dim < MAX_INSTR && x != -1)
+		{
+			archivo >> b;
+			if (b == "CONST" || b == "LOAD" || b == "STORE" || b == "WRITE" || b == "READ" || b == "IFEQ" || b == "IFGREAT" || b == "GOTO")
+				archivo >> args[dim];
+			else
+				args[dim] = -1;
+			if (b == "CONST")
+			{
+				codigos[dim] = CONST;
+			}
+			else
+			{
+				if (b == "LOAD")
+				{
+					codigos[dim] = LOAD;
+				}
+				else
+				{
+					if (b == "STORE")
+					{
+						codigos[dim] = STORE;
+					}
+					else
+					{
+						if (b == "ADD")
+						{
+							codigos[dim] = ADD;
+						}
+						else
+						{
+							if (b == "MULT")
+							{
+								codigos[dim] = MULT;
+							}
+							else
+							{
+								if (b == "WRITE")
+									codigos[dim] = WRITE;
+								else
+								{
+									if (b == "READ")
+										codigos[dim] = READ;
+									else
+									{
+										if (b == "GOTO")
+											codigos[dim] = GOTO;
+										else
+										{
+											if (b == "IFEQ")
+												codigos[dim] = IFEQ;
+											else
+											{
+												if (b == "IFGREAT")
+													codigos[dim] = IFGREAT;
+												else
+													dim = MAX_INSTR + 2;
+											}
+										}
+									}
+								}
+
+							}
+
+						}
+					}
+				}
+			}
+			dim++;
+			y = x;
+			archivo >> x;
+			if (x != y + 1)
+				dim = MAX_INSTR + 2;
+		}
+	}
+	else
+	{
+		cin >> x;
+		if (x != y + 1)
+			dim = MAX_INSTR + 2;
+		while (dim < MAX_INSTR && x != -1)
+		{
+			cin >> b;
+			if (b == "CONST" || b == "LOAD" || b == "STORE" || b == "WRITE" || b == "READ" || b == "IFEQ" || b == "IFGREAT" || b == "GOTO")
+				cin >> args[dim];
+			else
+				args[dim] = -1;
+			if (b == "CONST")
+			{
+				codigos[dim] = CONST;
+			}
+			else
+			{
+				if (b == "LOAD")
+				{
+					codigos[dim] = LOAD;
+				}
+				else
+				{
+					if (b == "STORE")
+					{
+						codigos[dim] = STORE;
+					}
+					else
+					{
+						if (b == "ADD")
+						{
+							codigos[dim] = ADD;
+						}
+						else
+						{
+							if (b == "MULT")
+							{
+								codigos[dim] = MULT;
+							}
+							else
+							{
+								if (b == "WRITE")
+									codigos[dim] = WRITE;
+								else
+								{
+									if (b == "READ")
+										codigos[dim] = READ;
+									else
+									{
+										if (b == "GOTO")
+											codigos[dim] = GOTO;
+										else
+										{
+											if (b == "IFEQ")
+												codigos[dim] = IFEQ;
+											else
+											{
+												if (b == "IFGREAT")
+													codigos[dim] = IFGREAT;
+												else
+													dim = MAX_INSTR + 2;
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			dim++;
+			y = x;
+			cin >> x;
+			if (x != y + 1)
+				dim = MAX_INSTR + 2;
+		}
+	}
+	if (dim > MAX_INSTR)
+		dim = -1;
+	return dim;
+}
+void muestra_memoria(const tMemoria memoria, ofstream& archivo)
+{
+	if (archivo.is_open())
+	{
+		archivo << "ESTADO DE LA MEMORIA:\n";
+		for (int i = 0; i < MAX_MEMORIA; i++)
+			archivo << setw(10) << "Posicion " << i << ": " << memoria[i] << endl;
+	}
+	else
+	{
+		cout << "ESTADO DE LA MEMORIA:\n";
+		for (int i = 0; i < MAX_MEMORIA; i++)
+			cout << setw(10) << "Posicion " << i << ": " << memoria[i] << endl;
+		cout << endl << endl;
+	}
+}
+void muestra_pila(const tPila pila, int tam_pila, ofstream& archivo)
+{
+	if (archivo.is_open())
+	{
+		archivo << "ESTADO DE LA PILA : ";
+		for (int i = 0; i < tam_pila; i++)
+			archivo << pila[i] << ' ';
+	}
+	else
+	{
+		cout << "ESTADO DE LA PILA : ";
+		for (int i = 0; i < tam_pila; i++)
+			cout << pila[i] << ' ';
+		cout << endl << endl;
+	}
+}
+int ejecuta_const(int valor, tPila pila, int tam_pila)
+{
+	if (tam_pila > MAX_PILA)
+		tam_pila = -2;
+	else
+		pila[tam_pila] = valor;
+	return tam_pila + 1;
+}
+int ejecuta_load(int posM, const tMemoria memoria, tPila pila, int tam_pila, tError& error)
+{
+	if (tam_pila > MAX_PILA || posM > MAX_MEMORIA || posM < 0)
+		tam_pila = -2;
+	else
+		pila[tam_pila] = memoria[posM];
+	return tam_pila + 1;
+}
+int ejecuta_store(int posM, tMemoria memoria, tPila pila, int tam_pila, tError& error)
+{
+	if (tam_pila > MAX_PILA || posM > MAX_MEMORIA || posM < 0)
+		tam_pila = 0;
+	else
+		memoria[posM] = pila[tam_pila - 1];
+	return tam_pila - 1;
+}
+int ejecuta_add(tPila pila, int tam_pila)
+{
+	if (tam_pila < 1)
+		tam_pila = 0;
+	else
+		pila[tam_pila - 2] += pila[tam_pila - 1];
+	return tam_pila - 1;
+}
+int ejecuta_mult(tPila pila, int tam_pila)
+{
+	if (tam_pila < 1)
+		tam_pila = 0;
+	else
+		pila[tam_pila - 2] = pila[tam_pila - 2] * pila[tam_pila - 1];
+	return tam_pila - 1;
+}
+int ejecuta_programa(tMemoria memoria, tPila pila, tCodigos codigos, tArgumentos args, int num_instr, int& pc, tError& error)
+{
+	int tam_pila = 0;
+	{
+		int i = 0;
+		while (i < num_instr && tam_pila != -1)
+		{
+			if (codigos[i] == CONST)
+			{
+				tam_pila = ejecuta_const(args[i], pila, tam_pila);
+
+			}
+			else
+			{
+				if (codigos[i] == LOAD)
+				{
+					tam_pila = ejecuta_load(args[i], memoria, pila, tam_pila);
+
+				}
+				else
+				{
+					if (codigos[i] == STORE)
+					{
+						tam_pila = ejecuta_store(args[i], memoria, pila, tam_pila);
+
+					}
+					else
+					{
+						if (codigos[i] == ADD)
+						{
+							tam_pila = ejecuta_add(pila, tam_pila);
+
+						}
+						else
+						{
+							if (codigos[i] == MULT)
+							{
+								tam_pila = ejecuta_mult(pila, tam_pila);
+
+							}
+							else
+							{
+								if (codigos[i] == IFEQ)
+								{
+									tam_pila = ejecuta_ifeq(pila, tam_pila);
+
+									if (pila[tam_pila - 1] == 0)
+										i = args[i] - 1;
+								}
+								else
+								{
+									if (codigos[i] == IFGREAT)
+									{
+										tam_pila = ejecuta_ifgreat(pila, tam_pila);
+
+										if (pila[tam_pila - 1] == 0)
+											i = args[i] - 1;
+									}
+									else
+									{
+										if (codigos[i] == READ)
+										{
+											tam_pila = ejecuta_read(memoria, args[i], tam_pila);
+
+										}
+										else
+										{
+											if (codigos[i] == WRITE)
+											{
+												tam_pila = ejecuta_write(memoria, args[i], tam_pila);
+
+											}
+											else
+											{
+												if (tam_pila > 0)
+												{
+
+													tam_pila--;
+													i = args[i] - 1;
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			i++;
+		}
+	}
+	return tam_pila;
+}
+int ejecuta_ifeq(tPila pila, int tam_pila)
+{
+	if (tam_pila < 1)
+		tam_pila = 0;
+	else
+	{
+		if (pila[tam_pila - 2] > pila[tam_pila - 1])
+			pila[tam_pila - 2] = 1;
+		else
+			pila[tam_pila - 2] = 0;
+	}
+	return tam_pila - 1;
+}
+int ejecuta_ifgreat(tPila pila, int tam_pila)
+{
+	if (tam_pila < 1)
+		tam_pila = 0;
+	else
+	{
+		if (pila[tam_pila - 2] > pila[tam_pila - 1])
+			pila[tam_pila - 2] = 1;
+		else
+			pila[tam_pila - 2] = 0;
+	}
+	return tam_pila - 1;
+}
+int ejecuta_read(tMemoria memoria, int pos, int tam_pila)
+{
+	cout << "Introduce un entero : ";
+	int x;
+	cin >> x;
+	if (pos<0 || pos>MAX_MEMORIA)
+		tam_pila = -1;
+	else
+		memoria[pos] = x;
+	return tam_pila;
+}
+int ejecuta_write(const tMemoria memoria, int pos, int tam_pila)
+{
+	if (pos<0 || pos>MAX_MEMORIA)
+		tam_pila = -1;
+	else
+		cout << "El valor de la posicion " << pos << " de la memoria es : " << memoria[pos] << endl;
+	return tam_pila;
+}
