@@ -451,3 +451,13 @@ int ejecuta_write(const tMemoria memoria, int pos, int tam_pila)
 		cout << "El valor de la posicion " << pos << " de la memoria es : " << memoria[pos] << endl;
 	return tam_pila;
 }
+
+
+
+
+
+
+
+
+askdsadasdhioas
+
